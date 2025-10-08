@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-10-08T13:12:30.834213",
-  "total_tests": 8,
-  "passed_tests": 7,
-  "success_rate": 87.5,
+  "timestamp": "2025-10-08T13:17:10.039500",
+  "total_tests": 10,
+  "passed_tests": 10,
+  "success_rate": 100.0,
   "test_details": [
     {
       "test": "API Health Check",
@@ -31,18 +31,28 @@
     },
     {
       "test": "AI Analysis",
-      "success": false,
-      "details": "Status: 500, Error: {\"detail\":\"404: Anomaly not found\"}"
+      "success": true,
+      "details": "Status: 200, Insight generated for: activation_rate"
+    },
+    {
+      "test": "Trigger Moengage Action",
+      "success": true,
+      "details": "Status: 200, Action: moengage, Status: success"
+    },
+    {
+      "test": "Trigger Jira Action",
+      "success": true,
+      "details": "Status: 200, Action: jira, Status: success"
     },
     {
       "test": "Get Insights",
       "success": true,
-      "details": "Status: 200, Insights found: 0"
+      "details": "Status: 200, Insights found: 1"
     },
     {
       "test": "Get Action Logs",
       "success": true,
-      "details": "Status: 200, Action logs found: 0"
+      "details": "Status: 200, Action logs found: 2"
     }
   ]
 }
