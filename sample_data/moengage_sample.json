@@ -1,0 +1,29 @@
+[
+  {
+    "campaign_id": "c101",
+    "name": "Welcome Campaign",
+    "launch_date": "2025-10-01",
+    "platform": "android",
+    "target_segment": "tier2",
+    "type": "push_notification",
+    "status": "active"
+  },
+  {
+    "campaign_id": "c102",
+    "name": "Re-engagement Email",
+    "launch_date": "2025-10-03",
+    "platform": "ios",
+    "target_segment": "tier1",
+    "type": "email",
+    "status": "completed"
+  },
+  {
+    "campaign_id": "c103",
+    "name": "Feature Announcement",
+    "launch_date": "2025-10-05",
+    "platform": "web",
+    "target_segment": "tier2",
+    "type": "in_app",
+    "status": "active"
+  }
+]

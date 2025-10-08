@@ -1,0 +1,5 @@
+release_id,release_date,title,summary
+1056,2025-10-02,Onboarding flow v2.4,Introduced new signup modal with phone verification which may have caused friction
+1057,2025-10-04,iOS Performance Update,Improved app performance and fixed memory leaks on iOS devices
+1058,2025-10-06,Web CTR Optimization,Updated web banner placement which changed click behavior
+1059,2025-10-07,Checkout Redesign,Redesigned checkout flow to reduce conversion friction

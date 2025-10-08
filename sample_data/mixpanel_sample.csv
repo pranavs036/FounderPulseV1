@@ -1,0 +1,9 @@
+date,metric,value,platform,cohort
+2025-09-30,activation_rate,0.42,android,tier2
+2025-10-07,activation_rate,0.39,android,tier2
+2025-09-30,retention_rate,0.68,ios,tier1
+2025-10-07,retention_rate,0.75,ios,tier1
+2025-09-30,ctr,0.12,android,tier1
+2025-10-07,ctr,0.10,android,tier1
+2025-09-30,conversion_rate,0.25,web,tier2
+2025-10-07,conversion_rate,0.20,web,tier2
