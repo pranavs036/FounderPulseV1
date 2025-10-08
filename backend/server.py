@@ -187,6 +187,7 @@ async def upload_mixpanel(file: UploadFile = File(...)):
         # Detect anomalies
         anomalies = detect_anomalies(df)
         for anomaly in anomalies:
+            anomaly['id'] = str(uuid.uuid4())
             anomaly['detected_at'] = datetime.now(timezone.utc).isoformat()
             await db.metric_anomalies.insert_one(anomaly)
         
