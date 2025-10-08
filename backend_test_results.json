@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-10-08T13:12:30.834213",
+  "total_tests": 8,
+  "passed_tests": 7,
+  "success_rate": 87.5,
+  "test_details": [
+    {
+      "test": "API Health Check",
+      "success": true,
+      "details": "Status: 200, Response: {'message': 'Growth Copilot API'}"
+    },
+    {
+      "test": "Mixpanel Upload",
+      "success": true,
+      "details": "Status: 200, Records: 8"
+    },
+    {
+      "test": "MoEngage Upload",
+      "success": true,
+      "details": "Status: 200, Records: 3"
+    },
+    {
+      "test": "Jira Upload",
+      "success": true,
+      "details": "Status: 200, Records: 4"
+    },
+    {
+      "test": "Anomaly Detection",
+      "success": true,
+      "details": "Found 4 anomalies"
+    },
+    {
+      "test": "AI Analysis",
+      "success": false,
+      "details": "Status: 500, Error: {\"detail\":\"404: Anomaly not found\"}"
+    },
+    {
+      "test": "Get Insights",
+      "success": true,
+      "details": "Status: 200, Insights found: 0"
+    },
+    {
+      "test": "Get Action Logs",
+      "success": true,
+      "details": "Status: 200, Action logs found: 0"
+    }
+  ]
+}
