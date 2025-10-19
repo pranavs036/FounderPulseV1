@@ -1,0 +1,6 @@
+release_id,release_date,title,summary
+1060,2025-10-08,Payment Gateway Update,Integrated new payment provider with faster checkout
+1061,2025-10-09,iOS App Polish,Fixed UI glitches and improved animations on iOS
+1062,2025-10-10,Android Performance Boost,Reduced app size by 30% and improved startup time
+1063,2025-10-11,Web Redesign Phase 1,New landing page with modern design and better CTAs
+1064,2025-10-12,Push Notification Enhancement,Smart notification timing based on user behavior

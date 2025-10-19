@@ -1,0 +1,38 @@
+[
+  {
+    "campaign_id": "c104",
+    "name": "Flash Sale Notification",
+    "launch_date": "2025-10-08",
+    "platform": "ios",
+    "target_segment": "tier1",
+    "type": "push_notification",
+    "status": "completed"
+  },
+  {
+    "campaign_id": "c105",
+    "name": "Onboarding Series Week 2",
+    "launch_date": "2025-10-09",
+    "platform": "android",
+    "target_segment": "tier2",
+    "type": "email",
+    "status": "active"
+  },
+  {
+    "campaign_id": "c106",
+    "name": "Weekend Special Offer",
+    "launch_date": "2025-10-10",
+    "platform": "web",
+    "target_segment": "tier1",
+    "type": "in_app",
+    "status": "active"
+  },
+  {
+    "campaign_id": "c107",
+    "name": "Win-back Campaign",
+    "launch_date": "2025-10-11",
+    "platform": "android",
+    "target_segment": "tier2",
+    "type": "push_notification",
+    "status": "scheduled"
+  }
+]

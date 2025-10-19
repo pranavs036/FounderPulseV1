@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 import pandas as pd
 import json
 import io
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import google.generativeai as genai
+
+# Import AI Engine
+from ai_engine import AIAnalysisEngine
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -23,8 +26,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Initialize AI Engine
+ai_engine = AIAnalysisEngine(db)
+
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(title="NorthStar AI - Growth Analytics Platform")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -45,6 +51,7 @@ class FileUploadResponse(BaseModel):
     uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     record_count: int
     status: str = "success"
+    insights_generated: int = 0
 
 class MetricAnomaly(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -82,16 +89,62 @@ class TriggerActionRequest(BaseModel):
     action_type: str
     insight_id: str
 
+class QueryRequest(BaseModel):
+    """Natural language query request"""
+    query: str
+
+class QueryResponse(BaseModel):
+    """Response for natural language queries"""
+    answer: str
+    supporting_evidence: List[str]
+    recommendations: List[str]
+    confidence: str
+
+class DataSummary(BaseModel):
+    """Summary of uploaded data"""
+    mixpanel_records: int
+    jira_records: int
+    moengage_records: int
+    detected_anomalies: int
+    generated_insights: int
+    action_logs: int
+
+# Background task for generating comprehensive insights
+async def generate_insights_background():
+    """Background task to generate comprehensive insights"""
+    try:
+        logger.info("Starting comprehensive insights generation...")
+        insights = await ai_engine.generate_comprehensive_insights()
+        
+        # Store insights
+        stored_count = 0
+        for insight in insights:
+            # Check if insight already exists
+            existing = await db.enhanced_insights.find_one({"id": insight['id']})
+            if not existing:
+                await db.enhanced_insights.insert_one(insight)
+                stored_count += 1
+        
+        logger.info(f"Generated and stored {stored_count} new comprehensive insights")
+        
+    except Exception as e:
+        logger.error(f"Background insights generation error: {str(e)}")
+
 # Helper Functions
 async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign_data: List[Dict]) -> Dict:
-    """Use Gemini 2.5 Pro to analyze metric changes"""
+    """Use Gemini API to analyze metric changes"""
     try:
-        # Initialize LlmChat with Gemini 2.5 Pro
-        chat = LlmChat(
-            api_key=os.environ['EMERGENT_LLM_KEY'],
-            session_id=str(uuid.uuid4()),
-            system_message="You are a growth analyst for a B2C app. Analyze metric changes and provide insights."
-        ).with_model("gemini", "gemini-2.5-pro")
+        # Configure Gemini
+        api_key = os.environ.get('GOOGLE_API_KEY')
+        if not api_key:
+            return {
+                "probable_cause": "API key not configured",
+                "affected_segment": "All users",
+                "recommended_action": "Configure GOOGLE_API_KEY in .env file"
+            }
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
         
         # Prepare context
         prompt = f"""
@@ -115,15 +168,14 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
 }}
 """
         
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+        response = model.generate_content(prompt)
+        response_text = response.text.strip()
         
-        # Parse JSON from response
-        response_text = response.strip()
         # Remove markdown code blocks if present
         if response_text.startswith('```'):
             response_text = response_text.split('\n', 1)[1]
             response_text = response_text.rsplit('```', 1)[0]
+            response_text = response_text.replace('json', '').strip()
         
         insight = json.loads(response_text)
         return insight
@@ -164,57 +216,113 @@ def detect_anomalies(df: pd.DataFrame) -> List[Dict]:
 # API Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Growth Copilot API"}
+    return {
+        "message": "NorthStar AI - Growth Analytics Platform",
+        "version": "2.0",
+        "features": [
+            "Automatic anomaly detection",
+            "AI-powered insights generation",
+            "Release impact analysis",
+            "Campaign correlation",
+            "Segment performance tracking",
+            "Natural language queries"
+        ]
+    }
+
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    try:
+        await db.command('ping')
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "ai_engine": "ready"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+
+@api_router.get("/summary", response_model=DataSummary)
+async def get_data_summary():
+    """Get summary of all uploaded data"""
+    try:
+        mixpanel_count = await db.mixpanel_data.count_documents({})
+        jira_count = await db.jira_data.count_documents({})
+        moengage_count = await db.moengage_data.count_documents({})
+        anomalies_count = await db.metric_anomalies.count_documents({})
+        insights_count = await db.ai_insights.count_documents({}) + await db.enhanced_insights.count_documents({})
+        actions_count = await db.action_logs.count_documents({})
+        
+        return DataSummary(
+            mixpanel_records=mixpanel_count,
+            jira_records=jira_count,
+            moengage_records=moengage_count,
+            detected_anomalies=anomalies_count,
+            generated_insights=insights_count,
+            action_logs=actions_count
+        )
+    except Exception as e:
+        logger.error(f"Summary error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/upload/mixpanel", response_model=FileUploadResponse)
-async def upload_mixpanel(file: UploadFile = File(...)):
-    """Upload Mixpanel CSV export"""
+async def upload_mixpanel(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    """Upload Mixpanel CSV export and trigger automatic insights generation"""
     try:
         contents = await file.read()
         df = pd.read_csv(io.BytesIO(contents))
         
-        # Validate required columns
         required_cols = ['date', 'metric', 'value', 'platform', 'cohort']
         if not all(col in df.columns for col in required_cols):
             raise HTTPException(status_code=400, detail=f"CSV must contain columns: {required_cols}")
         
-        # Store data
         records = df.to_dict('records')
         for record in records:
             record['uploaded_at'] = datetime.now(timezone.utc).isoformat()
         await db.mixpanel_data.insert_many(records)
         
-        # Detect anomalies
         anomalies = detect_anomalies(df)
         for anomaly in anomalies:
             anomaly['id'] = str(uuid.uuid4())
             anomaly['detected_at'] = datetime.now(timezone.utc).isoformat()
             await db.metric_anomalies.insert_one(anomaly)
         
+        if background_tasks:
+            background_tasks.add_task(generate_insights_background)
+        
+        logger.info(f"Uploaded {len(records)} Mixpanel records, detected {len(anomalies)} anomalies")
+        
         return FileUploadResponse(
             file_type="mixpanel",
             filename=file.filename,
-            record_count=len(records)
+            record_count=len(records),
+            insights_generated=len(anomalies)
         )
     except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
+        logger.error(f"Mixpanel upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/upload/moengage", response_model=FileUploadResponse)
-async def upload_moengage(file: UploadFile = File(...)):
-    """Upload MoEngage JSON"""
+async def upload_moengage(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    """Upload MoEngage JSON and trigger automatic insights generation"""
     try:
         contents = await file.read()
         data = json.loads(contents)
         
-        # Ensure it's a list
         if not isinstance(data, list):
             data = [data]
         
-        # Store data
         for record in data:
             record['uploaded_at'] = datetime.now(timezone.utc).isoformat()
         await db.moengage_data.insert_many(data)
+        
+        if background_tasks:
+            background_tasks.add_task(generate_insights_background)
+        
+        logger.info(f"Uploaded {len(data)} MoEngage records")
         
         return FileUploadResponse(
             file_type="moengage",
@@ -222,21 +330,25 @@ async def upload_moengage(file: UploadFile = File(...)):
             record_count=len(data)
         )
     except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
+        logger.error(f"MoEngage upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/upload/jira", response_model=FileUploadResponse)
-async def upload_jira(file: UploadFile = File(...)):
-    """Upload Jira CSV"""
+async def upload_jira(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    """Upload Jira CSV and trigger automatic insights generation"""
     try:
         contents = await file.read()
         df = pd.read_csv(io.BytesIO(contents))
         
-        # Store data
         records = df.to_dict('records')
         for record in records:
             record['uploaded_at'] = datetime.now(timezone.utc).isoformat()
         await db.jira_data.insert_many(records)
+        
+        if background_tasks:
+            background_tasks.add_task(generate_insights_background)
+        
+        logger.info(f"Uploaded {len(records)} Jira records")
         
         return FileUploadResponse(
             file_type="jira",
@@ -244,7 +356,7 @@ async def upload_jira(file: UploadFile = File(...)):
             record_count=len(records)
         )
     except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
+        logger.error(f"Jira upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/metrics", response_model=List[MetricAnomaly])
@@ -366,6 +478,46 @@ async def get_action_logs():
     
     return logs
 
+@api_router.get("/insights/enhanced")
+async def get_enhanced_insights():
+    """Get all comprehensive AI-generated insights"""
+    try:
+        insights = await db.enhanced_insights.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+        return insights
+    except Exception as e:
+        logger.error(f"Enhanced insights error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/insights/generate")
+async def trigger_insights_generation(background_tasks: BackgroundTasks):
+    """Manually trigger comprehensive insights generation"""
+    try:
+        background_tasks.add_task(generate_insights_background)
+        return {
+            "status": "success",
+            "message": "Insights generation started in background"
+        }
+    except Exception as e:
+        logger.error(f"Trigger insights error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/query", response_model=QueryResponse)
+async def natural_language_query(request: QueryRequest):
+    """Answer natural language queries about the data"""
+    try:
+        logger.info(f"Processing query: {request.query}")
+        result = await ai_engine.query_insights(request.query)
+        
+        return QueryResponse(
+            answer=result.get('answer', 'Unable to generate answer'),
+            supporting_evidence=result.get('supporting_evidence', []),
+            recommendations=result.get('recommendations', []),
+            confidence=result.get('confidence', 'low')
+        )
+    except Exception as e:
+        logger.error(f"Query error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.delete("/reset")
 async def reset_data():
     """Reset all data (for testing)"""
@@ -374,7 +526,11 @@ async def reset_data():
     await db.jira_data.delete_many({})
     await db.metric_anomalies.delete_many({})
     await db.ai_insights.delete_many({})
+    await db.enhanced_insights.delete_many({})
     await db.action_logs.delete_many({})
+    
+    logger.info("All data cleared")
+    
     return {"status": "success", "message": "All data cleared"}
 
 # Include the router in the main app
@@ -391,3 +547,4 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    logger.info("MongoDB connection closed")
