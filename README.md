@@ -1,6 +1,15 @@
-# Growth Copilot MVP
+# NorthStar AI - Growth Analytics Platform
 
-An AI-powered growth analytics platform that connects Mixpanel, MoEngage, and Jira to explain metric changes and trigger actions.
+An AI-powered growth analytics platform that automatically analyzes Mixpanel, MoEngage, and Jira data to provide comprehensive insights, answer natural language queries, and identify the root causes of metric changes.
+
+## 🆕 What's New in v2.0
+
+✨ **Comprehensive AI Analysis Engine** - Automatically generates 6 types of insights
+✨ **Natural Language Queries** - Ask questions about your data in plain English
+✨ **Background Processing** - Upload files instantly, insights generated asynchronously
+✨ **Release Impact Analysis** - Automatically correlates product releases with metric changes
+✨ **Campaign Effectiveness** - Measures and scores marketing campaign performance
+✨ **Segment Performance** - Compares user cohorts and identifies opportunities
 
 ## Features
 
@@ -45,12 +54,19 @@ An AI-powered growth analytics platform that connects Mixpanel, MoEngage, and Ji
 - Shadcn/UI components
 - Axios (API calls)
 
+## 📚 Documentation
+
+- **[Quick Start Guide](QUICK_START.md)** - Get up and running in 5 minutes
+- **[Backend Documentation](BACKEND_DOCUMENTATION.md)** - Comprehensive API reference and features
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - What was built and how it works
+- **[Test Script](test_backend.py)** - Automated testing suite
+
 ## Quick Start
 
 ### Prerequisites
-- Backend running on port 8001
-- Frontend running on port 3000
-- MongoDB on port 27017
+- Python 3.8+ with pip
+- MongoDB running on port 27017
+- Valid Emergent API key
 
 ### Environment Variables
 
