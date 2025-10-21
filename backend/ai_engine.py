@@ -26,7 +26,7 @@ class AIAnalysisEngine:
         api_key = os.environ.get('GOOGLE_API_KEY')
         if api_key:
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.model = genai.GenerativeModel('models/gemini-2.5-flash')
         else:
             logger.warning("GOOGLE_API_KEY not found in environment variables")
             self.model = None
