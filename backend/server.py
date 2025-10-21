@@ -114,16 +114,27 @@ async def generate_insights_background():
     """Background task to generate comprehensive insights"""
     try:
         logger.info("Starting comprehensive insights generation...")
-        insights = await ai_engine.generate_comprehensive_insights()
+        
+        # Add timeout protection
+        import asyncio
+        try:
+            insights = await asyncio.wait_for(
+                ai_engine.generate_comprehensive_insights(),
+                timeout=120.0  # 2 minute timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error("Insights generation timed out after 120 seconds")
+            return
         
         # Store insights
         stored_count = 0
         for insight in insights:
-            # Check if insight already exists
-            existing = await db.enhanced_insights.find_one({"id": insight['id']})
-            if not existing:
-                await db.enhanced_insights.insert_one(insight)
-                stored_count += 1
+            if insight:  # Skip None insights
+                # Check if insight already exists
+                existing = await db.enhanced_insights.find_one({"id": insight['id']})
+                if not existing:
+                    await db.enhanced_insights.insert_one(insight)
+                    stored_count += 1
         
         logger.info(f"Generated and stored {stored_count} new comprehensive insights")
         
@@ -144,7 +155,7 @@ async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign
             }
         
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
         
         # Prepare context
         prompt = f"""
@@ -290,8 +301,9 @@ async def upload_mixpanel(file: UploadFile = File(...), background_tasks: Backgr
             anomaly['detected_at'] = datetime.now(timezone.utc).isoformat()
             await db.metric_anomalies.insert_one(anomaly)
         
-        if background_tasks:
-            background_tasks.add_task(generate_insights_background)
+        # Temporarily disabled background task to avoid hanging
+        # if background_tasks:
+        #     background_tasks.add_task(generate_insights_background)
         
         logger.info(f"Uploaded {len(records)} Mixpanel records, detected {len(anomalies)} anomalies")
         
@@ -319,8 +331,9 @@ async def upload_moengage(file: UploadFile = File(...), background_tasks: Backgr
             record['uploaded_at'] = datetime.now(timezone.utc).isoformat()
         await db.moengage_data.insert_many(data)
         
-        if background_tasks:
-            background_tasks.add_task(generate_insights_background)
+        # Temporarily disabled background task to avoid hanging
+        # if background_tasks:
+        #     background_tasks.add_task(generate_insights_background)
         
         logger.info(f"Uploaded {len(data)} MoEngage records")
         
@@ -345,8 +358,9 @@ async def upload_jira(file: UploadFile = File(...), background_tasks: Background
             record['uploaded_at'] = datetime.now(timezone.utc).isoformat()
         await db.jira_data.insert_many(records)
         
-        if background_tasks:
-            background_tasks.add_task(generate_insights_background)
+        # Temporarily disabled background task to avoid hanging
+        # if background_tasks:
+        #     background_tasks.add_task(generate_insights_background)
         
         logger.info(f"Uploaded {len(records)} Jira records")
         
