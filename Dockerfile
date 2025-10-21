@@ -8,8 +8,8 @@ COPY backend/ /app/
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port (Railway will set PORT env var)
+# Expose port
 EXPOSE 8080
 
-# Start application
-CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080}
+# Start application - Railway will inject $PORT environment variable
+CMD uvicorn server:app --host 0.0.0.0 --port $PORT
