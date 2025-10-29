@@ -46,7 +46,7 @@ An AI-powered growth analytics platform that automatically analyzes Mixpanel, Mo
 - FastAPI (Python)
 - MongoDB (database)
 - Pandas (data processing)
-- Emergentintegrations (Gemini 2.5 Pro integration)
+- Google Generative AI (Gemini 2.5 Pro integration)
 
 **Frontend:**
 - React 19
@@ -66,7 +66,7 @@ An AI-powered growth analytics platform that automatically analyzes Mixpanel, Mo
 ### Prerequisites
 - Python 3.8+ with pip
 - MongoDB running on port 27017
-- Valid Emergent API key
+- Valid Google API key
 
 ### Environment Variables
 
@@ -75,12 +75,12 @@ An AI-powered growth analytics platform that automatically analyzes Mixpanel, Mo
 MONGO_URL="mongodb://localhost:27017"
 DB_NAME="growth_copilot_db"
 CORS_ORIGINS="*"
-EMERGENT_LLM_KEY=sk-emergent-...
+GOOGLE_API_KEY=your-google-api-key-here
 ```
 
 **Frontend (.env):**
 ```
-REACT_APP_BACKEND_URL=https://saas-copilot.preview.emergentagent.com
+REACT_APP_BACKEND_URL=http://localhost:8001
 ```
 
 ## Usage
@@ -222,7 +222,7 @@ All interactive elements include `data-testid` attributes for testing:
 ## Notes
 
 ⚠️ **This is an MVP**: Actions are simulated (no actual API calls to MoEngage/Jira)
-⚠️ **AI Analysis**: Uses Gemini 2.5 Pro via Emergent LLM key
+⚠️ **AI Analysis**: Uses Gemini 2.5 Pro via Google API key
 ⚠️ **Data Storage**: MongoDB collections are cleared on reset
 
 ## Future Enhancements
@@ -236,8 +236,8 @@ All interactive elements include `data-testid` attributes for testing:
 
 ## Support
 
-For issues or questions, please refer to the Emergent platform documentation.
+For issues or questions, please refer to the Google AI documentation.
 
 ---
 
-Built with ❤️ using Emergent AI Platform
+Built with ❤️ using Google Gemini AI

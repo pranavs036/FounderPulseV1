@@ -149,7 +149,7 @@ async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign
         api_key = os.environ.get('GOOGLE_API_KEY')
         if not api_key:
             return {
-                "probable_cause": "API key not configured",
+                "probable_cause": "Google API key not configured",
                 "affected_segment": "All users",
                 "recommended_action": "Configure GOOGLE_API_KEY in .env file"
             }
