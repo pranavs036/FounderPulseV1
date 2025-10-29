@@ -44,8 +44,12 @@ export const ChatInterface = ({ onSendQuery, loading }) => {
         role: "assistant",
         content: response.answer,
         supporting_evidence: response.supporting_evidence,
+        key_insights: response.key_insights,
         recommendations: response.recommendations,
+        caveats: response.caveats,
+        follow_up_suggestions: response.follow_up_suggestions,
         confidence: response.confidence,
+        confidence_explanation: response.confidence_explanation,
         timestamp: new Date()
       };
 
@@ -143,36 +147,112 @@ export const ChatInterface = ({ onSendQuery, loading }) => {
                     </div>
                   )}
 
-                  {/* Recommendations */}
-                  {message.recommendations && message.recommendations.length > 0 && (
+                  {/* Key Insights */}
+                  {message.key_insights && message.key_insights.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-200">
-                      <p className="text-xs font-semibold text-slate-600 mb-2">💡 Recommendations:</p>
+                      <p className="text-xs font-semibold text-slate-600 mb-2">💡 Key Insights:</p>
                       <ul className="space-y-1">
-                        {message.recommendations.map((rec, i) => (
+                        {message.key_insights.map((insight, i) => (
                           <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
-                            <span className="text-green-600 mt-0.5">→</span>
-                            <span>{rec}</span>
+                            <span className="text-purple-600 mt-0.5">→</span>
+                            <span className="italic">{insight}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {/* Confidence Badge */}
+                  {/* Recommendations */}
+                  {message.recommendations && message.recommendations.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-xs font-semibold text-slate-600 mb-2">✨ Recommendations:</p>
+                      <div className="space-y-2">
+                        {message.recommendations.map((rec, i) => (
+                          <div key={i} className="text-xs">
+                            {typeof rec === 'object' ? (
+                              <div className="bg-green-50 rounded p-2">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-green-600 font-bold mt-0.5">{rec.priority}.</span>
+                                  <div className="flex-1">
+                                    <p className="text-slate-700 font-medium">{rec.action}</p>
+                                    {rec.expected_outcome && (
+                                      <p className="text-slate-600 mt-1">Expected: {rec.expected_outcome}</p>
+                                    )}
+                                    {rec.effort_level && (
+                                      <p className="text-slate-500 mt-1 text-xs">Effort: {rec.effort_level} | Priority: {rec.priority}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-slate-600 flex items-start gap-2">
+                                <span className="text-green-600 mt-0.5">→</span>
+                                <span>{rec}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Caveats */}
+                  {message.caveats && message.caveats.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-xs font-semibold text-slate-600 mb-2">⚠️ Important Notes:</p>
+                      <ul className="space-y-1">
+                        {message.caveats.map((caveat, i) => (
+                          <li key={i} className="text-xs text-amber-700 flex items-start gap-2">
+                            <span className="mt-0.5">!</span>
+                            <span>{caveat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Follow-up Suggestions */}
+                  {message.follow_up_suggestions && message.follow_up_suggestions.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-xs font-semibold text-slate-600 mb-2">🔍 Dig Deeper:</p>
+                      <ul className="space-y-1">
+                        {message.follow_up_suggestions.map((suggestion, i) => (
+                          <li 
+                            key={i} 
+                            className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer flex items-start gap-2"
+                            onClick={() => setInput(suggestion)}
+                          >
+                            <span className="mt-0.5">→</span>
+                            <span className="underline">{suggestion}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Confidence Badge with Explanation */}
                   {message.confidence && (
-                    <div className="mt-2 flex justify-end">
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${
-                          message.confidence === 'high' 
-                            ? 'bg-green-100 text-green-700' 
-                            : message.confidence === 'medium'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {message.confidence} confidence
-                      </Badge>
+                    <div className="mt-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${
+                            message.confidence === 'high' 
+                              ? 'bg-green-100 text-green-700' 
+                              : message.confidence === 'medium'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                          title={message.confidence_explanation || ''}
+                        >
+                          {message.confidence} confidence
+                        </Badge>
+                      </div>
+                      {message.confidence_explanation && (
+                        <p className="text-xs text-slate-500 mt-1 text-right italic">
+                          {message.confidence_explanation}
+                        </p>
+                      )}
                     </div>
                   )}
 

@@ -1,7 +1,7 @@
 """
 AI Analysis Engine for NorthStar-AI
 Provides advanced analytics, correlation analysis, and insights generation
-Uses Google Gemini API directly
+Uses Google Gemini API directly with enhanced, detailed prompts
 """
 
 import logging
@@ -63,23 +63,21 @@ class AIAnalysisEngine:
             # Convert to DataFrames
             df_mixpanel = pd.DataFrame(mixpanel_data)
             
+            # Run all analysis types in parallel for faster processing!
+            import asyncio
+            results = await asyncio.gather(
+                self._analyze_metric_trends(df_mixpanel, jira_data, moengage_data),
+                self._analyze_correlations(df_mixpanel, jira_data, moengage_data),
+                self._analyze_segment_performance(df_mixpanel),
+                self._compare_platforms(df_mixpanel),
+                return_exceptions=True
+            )
+            
+            # Flatten results and filter out errors
             insights = []
-            
-            # 1. Metric Trend Analysis
-            trend_insights = await self._analyze_metric_trends(df_mixpanel, jira_data, moengage_data)
-            insights.extend(trend_insights)
-            
-            # 2. Correlation Analysis
-            correlation_insights = await self._analyze_correlations(df_mixpanel, jira_data, moengage_data)
-            insights.extend(correlation_insights)
-            
-            # 3. Segment Performance
-            segment_insights = await self._analyze_segment_performance(df_mixpanel)
-            insights.extend(segment_insights)
-            
-            # 4. Platform Comparison
-            platform_insights = await self._compare_platforms(df_mixpanel)
-            insights.extend(platform_insights)
+            for result in results:
+                if isinstance(result, list):
+                    insights.extend(result)
             
             return insights
             
@@ -366,30 +364,109 @@ class AIAnalysisEngine:
     async def _generate_trend_insight(self, metric_name: str, change_percent: float, 
                                      metric_df: pd.DataFrame, related_releases: List[Dict], 
                                      related_campaigns: List[Dict]) -> Optional[Dict]:
-        """Generate AI insight for metric trend"""
+        """Generate AI insight for metric trend - ENHANCED VERSION"""
         try:
-            prompt = f"""
-Analyze this metric trend:
+            # Calculate additional context
+            first_value = metric_df.iloc[0]['value']
+            last_value = metric_df.iloc[-1]['value']
+            platform_cohort_breakdown = metric_df.groupby(['platform', 'cohort'])['value'].mean().to_dict()
+            
+            prompt = f"""You are a senior growth analyst with 10+ years of experience in B2C digital products, specializing in user acquisition, activation, retention, and monetization metrics.
 
-Metric: {metric_name}
-Change: {change_percent:+.1f}%
-Data points: {len(metric_df)}
+COMPANY CONTEXT:
+- Type: B2C mobile and web application
+- Focus: Growth optimization and user engagement
+- Key segments: tier1 (premium users), tier2 (standard users)
+- Platforms: Android, iOS, Web
 
-Related releases (within 7 days):
-{json.dumps(related_releases[:2], indent=2)}
+METRIC ANALYSIS REQUEST:
 
-Related campaigns (within 7 days):
-{json.dumps(related_campaigns[:2], indent=2)}
+Metric Name: {metric_name.replace('_', ' ').title()}
+Overall Change: {change_percent:+.1f}% (from {first_value:.3f} to {last_value:.3f})
+Time Period: {len(metric_df)} data points analyzed
+Trend Direction: {'Declining' if change_percent < 0 else 'Growing' if change_percent > 0 else 'Stable'}
 
-Provide analysis in JSON format (no markdown, just JSON):
+PLATFORM & COHORT BREAKDOWN:
+{json.dumps(platform_cohort_breakdown, indent=2)}
+
+TEMPORAL CONTEXT - Recent Product Releases (within 7 days):
+{json.dumps(related_releases[:3], indent=2) if related_releases else 'No releases in this period'}
+
+TEMPORAL CONTEXT - Recent Marketing Campaigns (within 7 days):
+{json.dumps(related_campaigns[:3], indent=2) if related_campaigns else 'No campaigns in this period'}
+
+HISTORICAL BASELINE:
+- Typical change for this metric: ±2-3% weekly
+- Current change ({change_percent:+.1f}%) is {'significant' if abs(change_percent) > 5 else 'normal'} variation
+- Urgency: {'HIGH' if abs(change_percent) > 10 else 'MEDIUM' if abs(change_percent) > 5 else 'LOW'}
+
+YOUR COMPREHENSIVE ANALYSIS TASK:
+
+Provide a detailed, actionable analysis covering:
+
+1. ROOT CAUSE ANALYSIS:
+   - Technical factors (product changes, bugs, performance)
+   - User experience factors (friction, confusion, delight)
+   - External factors (seasonality, competition, campaigns)
+   - Temporal correlations (releases, campaigns, events)
+
+2. USER IMPACT ASSESSMENT:
+   - Which user segments are most affected
+   - User behavior patterns and psychology
+   - Estimated number/percentage of users impacted
+
+3. BUSINESS IMPACT:
+   - Revenue implications (if applicable)
+   - User growth trajectory impact
+   - Long-term vs short-term effects
+   - Competitive positioning impact
+
+4. ACTIONABLE RECOMMENDATIONS:
+   - Prioritized by expected impact and effort
+   - Include specific implementation steps
+   - Estimate expected outcomes
+   - Note any risks or dependencies
+
+Respond with detailed JSON in this exact format (no markdown):
 {{
   "insight_type": "trend_analysis",
   "metric": "{metric_name}",
-  "summary": "brief summary of the trend",
-  "probable_causes": ["cause 1", "cause 2"],
-  "affected_segments": ["segment 1"],
-  "recommendations": ["action 1", "action 2"],
-  "confidence": "high/medium/low"
+  "summary": "Comprehensive 2-3 sentence executive summary explaining what happened, why it matters, and immediate next steps",
+  "probable_causes": [
+    "Primary cause: Detailed explanation with evidence from the data",
+    "Secondary cause: Contributing factor with reasoning",
+    "Tertiary cause: Additional consideration if applicable"
+  ],
+  "affected_segments": [
+    "Detailed description of primary affected user segment with characteristics and behavior patterns",
+    "Secondary affected segment if applicable"
+  ],
+  "business_impact": {{
+    "severity": "critical/high/medium/low",
+    "estimated_user_count": "Approximate number or percentage of users affected",
+    "revenue_impact": "Estimated financial impact or qualitative assessment",
+    "urgency": "immediate/this-week/this-month/monitor"
+  }},
+  "recommendations": [
+    {{
+      "action": "Specific, implementable action with clear steps",
+      "expected_impact": "Quantified or qualitative expected outcome",
+      "effort_level": "low/medium/high",
+      "timeline": "immediate/1-week/2-weeks/1-month",
+      "priority": 1,
+      "risks": "Potential downsides or dependencies to consider"
+    }},
+    {{
+      "action": "Second priority action",
+      "expected_impact": "Expected outcome",
+      "effort_level": "low/medium/high",
+      "timeline": "timeframe",
+      "priority": 2,
+      "risks": "Considerations"
+    }}
+  ],
+  "confidence": "high/medium/low",
+  "confidence_reasoning": "Detailed explanation of why this confidence level, citing specific data points and correlation strength"
 }}
 """
             
@@ -413,27 +490,107 @@ Provide analysis in JSON format (no markdown, just JSON):
             return None
     
     async def _generate_release_correlation_insight(self, release: Dict, impact_summary: Dict) -> Optional[Dict]:
-        """Generate insight for release correlation"""
+        """Generate insight for release correlation - ENHANCED VERSION"""
         try:
-            prompt = f"""
-Analyze the impact of this release:
+            # Calculate aggregate impact
+            total_positive = sum(1 for m in impact_summary.values() if m['change_percent'] > 0)
+            total_negative = sum(1 for m in impact_summary.values() if m['change_percent'] < 0)
+            avg_impact = sum(m['change_percent'] for m in impact_summary.values()) / len(impact_summary)
+            
+            prompt = f"""You are a senior product analyst with deep expertise in feature impact analysis, A/B testing, and product analytics for B2C applications.
 
-Release: {release['title']}
-Date: {release['release_date']}
-Summary: {release['summary']}
+COMPANY CONTEXT:
+- Type: B2C mobile and web application
+- Focus: Continuous product improvement and feature optimization
+- Development cycle: Bi-weekly releases
+- User base: Mixed segments across Android, iOS, and Web
 
-Metric impacts (7 days after):
+RELEASE IMPACT ANALYSIS REQUEST:
+
+Release Information:
+- Release ID: {release['release_id']}
+- Title: {release['title']}
+- Deploy Date: {release['release_date']}
+- Description: {release['summary']}
+
+MEASURED METRIC IMPACTS (7 days post-release):
+
 {json.dumps(impact_summary, indent=2)}
 
-Provide analysis in JSON format (no markdown, just JSON):
+AGGREGATE ANALYSIS:
+- Metrics improved: {total_positive}
+- Metrics declined: {total_negative}
+- Average impact: {avg_impact:+.1f}%
+- Overall release effect: {'Positive' if avg_impact > 0 else 'Negative' if avg_impact < 0 else 'Neutral'}
+
+ANALYSIS FRAMEWORK TO APPLY:
+
+1. FEATURE IMPACT ASSESSMENT:
+   - Intended vs actual outcomes
+   - User experience implications
+   - Technical implementation quality
+   - Rollout strategy effectiveness
+
+2. ROOT CAUSE ANALYSIS:
+   - Why did certain metrics improve?
+   - Why did certain metrics decline?
+   - Were there unintended consequences?
+   - What user behavior patterns changed?
+
+3. BUSINESS STRATEGY:
+   - Should this feature be iterated, reverted, or expanded?
+   - What learnings apply to future releases?
+   - Risk vs reward assessment
+
+4. ACTIONABLE NEXT STEPS:
+   - Immediate fixes for negative impacts
+   - Opportunities to amplify positive impacts
+   - A/B testing recommendations
+   - Rollback considerations
+
+Provide comprehensive analysis in JSON format (no markdown):
 {{
   "insight_type": "release_impact",
   "release_id": "{release['release_id']}",
-  "summary": "overall impact summary",
-  "positive_impacts": ["metric improvements"],
-  "negative_impacts": ["metric declines"],
-  "recommendations": ["actions to take"],
-  "confidence": "high/medium/low"
+  "release_title": "{release['title']}",
+  "summary": "Executive summary in 2-3 sentences covering overall impact, key findings, and critical next steps",
+  "overall_assessment": "success/mixed/failure",
+  "positive_impacts": [
+    {{
+      "metric": "metric name",
+      "change": "percentage change",
+      "explanation": "Detailed explanation of why this improved"
+    }}
+  ],
+  "negative_impacts": [
+    {{
+      "metric": "metric name",
+      "change": "percentage change",
+      "explanation": "Detailed explanation of why this declined",
+      "user_impact": "How users experienced this negatively"
+    }}
+  ],
+  "unintended_consequences": [
+    "Unexpected outcome 1 with analysis",
+    "Unexpected outcome 2 if applicable"
+  ],
+  "user_feedback_hypothesis": "What users likely experienced and felt about this release",
+  "recommendations": [
+    {{
+      "action": "Specific action to take",
+      "rationale": "Why this action is recommended",
+      "expected_outcome": "What will improve",
+      "effort": "low/medium/high",
+      "priority": 1,
+      "rollback_consideration": "Whether this warrants feature rollback"
+    }}
+  ],
+  "lessons_learned": [
+    "Key learning for future releases",
+    "Process improvement opportunity"
+  ],
+  "confidence": "high/medium/low",
+  "confidence_reasoning": "Explanation citing data quality, correlation strength, and analysis methodology"
 }}
 """
             
@@ -456,29 +613,114 @@ Provide analysis in JSON format (no markdown, just JSON):
             return None
     
     async def _generate_campaign_correlation_insight(self, campaign: Dict, impact_summary: Dict) -> Optional[Dict]:
-        """Generate insight for campaign correlation"""
+        """Generate insight for campaign correlation - ENHANCED VERSION"""
         try:
-            prompt = f"""
-Analyze the impact of this campaign:
+            # Calculate campaign ROI indicators
+            avg_impact = sum(m['change_percent'] for m in impact_summary.values()) / len(impact_summary) if impact_summary else 0
+            
+            prompt = f"""You are a senior marketing analyst with expertise in campaign performance analysis, marketing attribution, customer lifecycle management, and ROI optimization for B2C companies.
 
-Campaign: {campaign['name']}
-Type: {campaign['type']}
-Launch Date: {campaign['launch_date']}
-Platform: {campaign['platform']}
-Target: {campaign['target_segment']}
+COMPANY CONTEXT:
+- Type: B2C mobile and web application
+- Marketing channels: Push notifications, Email, In-app messages
+- User segments: tier1 (premium/engaged), tier2 (standard/casual)
+- Marketing objectives: Acquisition, activation, retention, monetization
 
-Metric impacts (7 days after):
+CAMPAIGN PERFORMANCE ANALYSIS REQUEST:
+
+Campaign Details:
+- Campaign ID: {campaign['campaign_id']}
+- Campaign Name: {campaign['name']}
+- Campaign Type: {campaign['type']}
+- Launch Date: {campaign['launch_date']}
+- Target Platform: {campaign['platform']}
+- Target Segment: {campaign['target_segment']}
+- Campaign Status: {campaign.get('status', 'unknown')}
+
+MEASURED METRIC IMPACTS (7 days post-launch):
+
 {json.dumps(impact_summary, indent=2)}
 
-Provide analysis in JSON format (no markdown, just JSON):
+CAMPAIGN PERFORMANCE INDICATORS:
+- Average metric impact: {avg_impact:+.1f}%
+- Campaign effectiveness: {'Strong' if avg_impact > 5 else 'Moderate' if avg_impact > 0 else 'Weak/Negative'}
+
+ANALYSIS FRAMEWORK TO APPLY:
+
+1. CAMPAIGN EFFECTIVENESS:
+   - Did it achieve intended goals?
+   - Which metrics were most influenced?
+   - Was the target segment responsive?
+   - How does this compare to typical campaign performance?
+
+2. AUDIENCE INSIGHTS:
+   - How did the target segment respond?
+   - Were there unexpected audience behaviors?
+   - Segment-specific learnings
+   - Cross-segment opportunities
+
+3. CREATIVE & MESSAGING:
+   - What likely resonated with users?
+   - What messaging/timing/channel factors contributed?
+   - Creative insights for future campaigns
+
+4. ROI & SCALABILITY:
+   - Cost-effectiveness assessment
+   - Scalability potential
+   - Should this be repeated/scaled/modified?
+
+5. OPTIMIZATION OPPORTUNITIES:
+   - How to improve performance
+   - Testing recommendations
+   - Audience expansion potential
+
+Provide comprehensive campaign analysis in JSON format (no markdown):
 {{
   "insight_type": "campaign_impact",
   "campaign_id": "{campaign['campaign_id']}",
-  "summary": "campaign effectiveness summary",
-  "effectiveness_score": 85,
-  "key_learnings": ["learning 1", "learning 2"],
-  "recommendations": ["future actions"],
-  "confidence": "high/medium/low"
+  "campaign_name": "{campaign['name']}",
+  "summary": "Executive summary in 2-3 sentences: campaign performance, key drivers, and strategic recommendation",
+  "overall_performance": "excellent/good/moderate/poor",
+  "effectiveness_score": 0-100,
+  "effectiveness_reasoning": "Detailed explanation of score based on metric movements and business goals",
+  "metric_impacts": [
+    {{
+      "metric": "metric name",
+      "change": "percentage",
+      "assessment": "positive/negative/neutral",
+      "explanation": "Why this metric moved this way"
+    }}
+  ],
+  "audience_insights": {{
+    "segment_response": "How the target segment {campaign['target_segment']} responded",
+    "engagement_level": "high/medium/low",
+    "behavioral_patterns": "Observable user behavior changes",
+    "unexpected_findings": "Any surprising outcomes"
+  }},
+  "key_learnings": [
+    "Specific learning about what worked",
+    "Insight about audience behavior",
+    "Timing or channel effectiveness insight",
+    "Creative or messaging lesson"
+  ],
+  "recommendations": [
+    {{
+      "action": "Specific next step (scale/modify/retire/test)",
+      "rationale": "Why this is recommended",
+      "expected_outcome": "What this will achieve",
+      "target_segment": "Who to target",
+      "priority": 1,
+      "implementation_notes": "How to execute this"
+    }}
+  ],
+  "scalability_assessment": {{
+    "should_scale": true/false,
+    "scale_to_segments": ["suggested segments to expand to"],
+    "scale_to_platforms": ["suggested platforms"],
+    "modifications_needed": "Changes required before scaling"
+  }},
+  "confidence": "high/medium/low",
+  "confidence_reasoning": "Data quality, sample size, correlation strength, and attribution clarity"
 }}
 """
             
@@ -501,24 +743,116 @@ Provide analysis in JSON format (no markdown, just JSON):
             return None
     
     async def _generate_segment_insight(self, cohort: str, metrics: Dict, comparison: Dict) -> Optional[Dict]:
-        """Generate insight for segment performance"""
+        """Generate insight for segment performance - ENHANCED VERSION"""
         try:
-            prompt = f"""
-Analyze this user segment performance:
+            # Calculate segment health score
+            positive_metrics = sum(1 for v in comparison.values() if v > 0)
+            total_metrics = len(comparison)
+            health_score = (positive_metrics / total_metrics * 100) if total_metrics > 0 else 50
+            
+            prompt = f"""You are a senior user segmentation and cohort analysis expert with deep experience in customer lifecycle management, retention strategies, and personalization for B2C products.
 
-Segment: {cohort}
-Average metrics: {json.dumps(metrics, indent=2)}
-Comparison with other segments: {json.dumps(comparison, indent=2)}
+COMPANY CONTEXT:
+- Type: B2C digital product with subscription/freemium model
+- User segments: tier1 (premium/engaged users), tier2 (standard/casual users)
+- Business model: Likely freemium with upsell opportunities
+- Growth focus: Acquisition, activation, monetization, retention
 
-Provide analysis in JSON format (no markdown, just JSON):
+USER SEGMENT DEEP-DIVE ANALYSIS:
+
+Segment Under Analysis: {cohort}
+Segment Characteristics: {'Premium/engaged users with higher LTV' if cohort == 'tier1' else 'Standard/casual users, price-sensitive'  if cohort == 'tier2' else 'User segment'}
+
+SEGMENT PERFORMANCE METRICS:
+Average Performance:
+{json.dumps(metrics, indent=2)}
+
+COMPARATIVE ANALYSIS (vs other segments):
+{json.dumps(comparison, indent=2)}
+
+SEGMENT HEALTH INDICATORS:
+- Metrics outperforming others: {positive_metrics}/{total_metrics}
+- Segment health score: {health_score:.0f}/100
+- Overall assessment: {'Strong performer' if health_score > 60 else 'Underperformer' if health_score < 40 else 'Mixed performance'}
+
+ANALYSIS FRAMEWORK TO APPLY:
+
+1. SEGMENT CHARACTERIZATION:
+   - User demographics and psychographics likely
+   - Behavioral patterns and usage frequency
+   - Value perception and price sensitivity
+   - Feature affinity and product engagement
+
+2. PERFORMANCE ANALYSIS:
+   - Why this segment performs differently
+   - Strengths to leverage
+   - Weaknesses to address
+   - Comparison to benchmark/other segments
+
+3. GROWTH OPPORTUNITIES:
+   - Untapped potential in this segment
+   - Cross-sell/upsell opportunities
+   - Retention improvement strategies
+   - Acquisition channel optimization
+
+4. PERSONALIZATION STRATEGY:
+   - Tailored features or messaging
+   - Segment-specific campaigns
+   - Pricing or packaging adjustments
+   - User journey optimizations
+
+5. STRATEGIC RECOMMENDATIONS:
+   - How to grow this segment
+   - How to improve segment economics
+   - Whether to invest more/less in this segment
+   - Specific tactics with expected ROI
+
+Provide comprehensive segment analysis in JSON format (no markdown):
 {{
   "insight_type": "segment_analysis",
   "segment": "{cohort}",
-  "summary": "segment performance summary",
-  "strengths": ["strong metric 1"],
-  "weaknesses": ["weak metric 1"],
-  "recommendations": ["targeted action 1"],
-  "confidence": "high/medium/low"
+  "segment_characteristics": "Detailed description of who these users are, their behaviors, and motivations",
+  "summary": "Executive summary in 2-3 sentences covering segment performance, key differentiators, and strategic opportunity",
+  "performance_overview": {{
+    "health_score": {health_score:.0f},
+    "overall_assessment": "excellent/good/average/poor",
+    "primary_strength": "What this segment does best",
+    "primary_weakness": "Biggest area for improvement"
+  }},
+  "strengths": [
+    {{
+      "metric": "metric name",
+      "performance": "percentage vs others",
+      "explanation": "Detailed reason why this segment excels here",
+      "leverage_opportunity": "How to capitalize on this strength"
+    }}
+  ],
+  "weaknesses": [
+    {{
+      "metric": "metric name",
+      "performance": "percentage vs others",
+      "explanation": "Root cause of underperformance",
+      "improvement_strategy": "Specific approach to address this"
+    }}
+  ],
+  "growth_opportunities": [
+    "Specific untapped opportunity with this segment",
+    "Additional growth vector if identified"
+  ],
+  "recommendations": [
+    {{
+      "action": "Specific, segment-tailored recommendation",
+      "expected_impact": "Quantified outcome",
+      "target_metric": "Which metric will improve",
+      "implementation": "How to execute this",
+      "priority": 1,
+      "segment_specific_rationale": "Why this works for this particular segment"
+    }}
+  ],
+  "cross_segment_insights": "What other segments can learn from this segment's performance",
+  "investment_recommendation": "invest-more/maintain/reduce with reasoning",
+  "confidence": "high/medium/low",
+  "confidence_reasoning": "Data quality, sample size, and analysis methodology explanation"
 }}
 """
             
@@ -541,21 +875,120 @@ Provide analysis in JSON format (no markdown, just JSON):
             return None
     
     async def _generate_platform_comparison_insight(self, platform_performance: Dict) -> Optional[Dict]:
-        """Generate insight comparing platform performance"""
+        """Generate insight comparing platform performance - ENHANCED VERSION"""
         try:
-            prompt = f"""
-Compare performance across platforms:
+            # Calculate platform rankings
+            platform_scores = {}
+            for platform, metrics in platform_performance.items():
+                avg_value = sum(m['avg'] for m in metrics.values()) / len(metrics) if metrics else 0
+                platform_scores[platform] = avg_value
+            
+            best_platform = max(platform_scores, key=platform_scores.get) if platform_scores else 'unknown'
+            
+            prompt = f"""You are a senior cross-platform product strategist with expertise in mobile (iOS/Android) and web product development, platform-specific UX optimization, and multi-platform growth strategies.
 
+COMPANY CONTEXT:
+- Type: Multi-platform B2C digital product
+- Platforms: Android app, iOS app, Web application
+- Strategy: Platform parity with platform-specific optimizations
+- Challenge: Balancing consistent experience with platform best practices
+
+CROSS-PLATFORM PERFORMANCE ANALYSIS:
+
+Complete Platform Metrics:
 {json.dumps(platform_performance, indent=2)}
 
-Provide analysis in JSON format (no markdown, just JSON):
+PLATFORM RANKINGS:
+Best performing: {best_platform}
+Platform scores: {json.dumps(platform_scores, indent=2)}
+
+ANALYSIS FRAMEWORK TO APPLY:
+
+1. PLATFORM PERFORMANCE COMPARISON:
+   - Which platform delivers best user experience?
+   - Where are the biggest performance gaps?
+   - Platform-specific strengths and weaknesses
+   - Technical vs UX vs user base differences
+
+2. ROOT CAUSE ANALYSIS:
+   - Why does each platform perform differently?
+   - Technical implementation differences
+   - UX pattern differences (native vs web)
+   - User base composition differences
+   - App store/discovery differences
+
+3. USER EXPERIENCE ASSESSMENT:
+   - Platform-specific friction points
+   - Platform-specific delighters
+   - Feature parity gaps
+   - Platform-appropriate design patterns
+
+4. STRATEGIC OPPORTUNITIES:
+   - Quick wins for underperforming platforms
+   - Best practices to replicate across platforms
+   - Platform-specific feature opportunities
+   - Investment allocation recommendations
+
+5. TECHNICAL CONSIDERATIONS:
+   - Performance optimization opportunities
+   - Code reuse vs platform-specific development
+   - Testing and QA implications
+   - Development resource allocation
+
+Provide comprehensive cross-platform analysis in JSON format (no markdown):
 {{
   "insight_type": "platform_comparison",
-  "summary": "cross-platform performance summary",
-  "best_performing_platform": "platform name",
-  "areas_for_improvement": {{"platform": "metric"}},
-  "recommendations": ["action 1", "action 2"],
-  "confidence": "high/medium/low"
+  "summary": "Executive summary in 2-3 sentences covering platform performance landscape, key gaps, and strategic priority",
+  "best_performing_platform": "{best_platform}",
+  "best_platform_analysis": "Detailed explanation of why this platform excels",
+  "platform_breakdown": [
+    {{
+      "platform": "platform name",
+      "overall_score": 0-100,
+      "rank": 1-3,
+      "strengths": ["What this platform does well"],
+      "weaknesses": ["What needs improvement"],
+      "unique_advantages": "Platform-specific benefits",
+      "user_base_characteristics": "Who uses this platform and why"
+    }}
+  ],
+  "performance_gaps": [
+    {{
+      "gap": "Specific performance difference between platforms",
+      "impact": "Business consequence of this gap",
+      "root_cause": "Why this gap exists",
+      "recommended_action": "How to close the gap"
+    }}
+  ],
+  "platform_parity_assessment": {{
+    "feature_parity": "high/medium/low",
+    "ux_consistency": "high/medium/low",
+    "performance_consistency": "high/medium/low",
+    "critical_gaps": ["Most important disparities to address"]
+  }},
+  "recommendations": [
+    {{
+      "action": "Specific platform optimization",
+      "target_platform": "which platform",
+      "expected_impact": "what will improve",
+      "effort": "low/medium/high",
+      "priority": 1,
+      "technical_requirements": "What's needed to implement",
+      "success_metrics": "How to measure success"
+    }}
+  ],
+  "investment_strategy": {{
+    "increase_investment": ["platforms to invest more in"],
+    "maintain_investment": ["platforms that are working well"],
+    "optimization_focus": ["platforms needing efficiency gains"],
+    "rationale": "Strategic reasoning for investment allocation"
+  }},
+  "quick_wins": [
+    "Fast, high-impact improvement opportunity 1",
+    "Fast, high-impact improvement opportunity 2"
+  ],
+  "confidence": "high/medium/low",
+  "confidence_reasoning": "Data coverage across platforms, sample size adequacy, and analysis methodology"
 }}
 """
             
@@ -578,30 +1011,125 @@ Provide analysis in JSON format (no markdown, just JSON):
             return None
     
     async def query_insights(self, query: str) -> Dict:
-        """Answer natural language queries about the data"""
+        """Answer natural language queries about the data - ENHANCED VERSION"""
         try:
             # Get all data
             mixpanel_data = await self.db.mixpanel_data.find({}, {"_id": 0}).to_list(1000)
             jira_data = await self.db.jira_data.find({}, {"_id": 0}).to_list(1000)
             moengage_data = await self.db.moengage_data.find({}, {"_id": 0}).to_list(1000)
             insights = await self.db.ai_insights.find({}, {"_id": 0}).to_list(1000)
+            enhanced_insights = await self.db.enhanced_insights.find({}, {"_id": 0}).to_list(1000)
             
-            prompt = f"""
-User question: {query}
+            # Calculate data summary for context
+            total_metrics = len(mixpanel_data)
+            total_releases = len(jira_data)
+            total_campaigns = len(moengage_data)
+            
+            prompt = f"""You are an expert data analyst and growth advisor with deep experience in product analytics, marketing attribution, and data-driven decision making for B2C companies.
 
-Available data:
-Mixpanel metrics: {json.dumps(mixpanel_data[:10], indent=2)}
-Release notes: {json.dumps(jira_data, indent=2)}
-Campaigns: {json.dumps(moengage_data, indent=2)}
-Previous insights: {json.dumps(insights[:5], indent=2)}
+COMPANY PROFILE:
+- Industry: B2C digital product/application
+- Platforms: Android, iOS, Web
+- User Segments: tier1 (premium/engaged), tier2 (standard/casual)
+- Data Sources: Mixpanel (product analytics), Jira (release tracking), MoEngage (marketing automation)
 
-Provide a comprehensive answer in JSON format (no markdown, just JSON):
+AVAILABLE DATA SUMMARY:
+- Mixpanel metric records: {total_metrics}
+- Product releases tracked: {total_releases}
+- Marketing campaigns tracked: {total_campaigns}
+- AI insights previously generated: {len(insights) + len(enhanced_insights)}
+
+USER QUESTION:
+"{query}"
+
+COMPLETE DATA CONTEXT:
+
+Recent Mixpanel Metrics (last 10 records):
+{json.dumps(mixpanel_data[:10], indent=2)}
+
+All Product Releases:
+{json.dumps(jira_data, indent=2)}
+
+All Marketing Campaigns:
+{json.dumps(moengage_data, indent=2)}
+
+Previously Generated Insights:
+{json.dumps(insights[:5] + enhanced_insights[:5], indent=2)}
+
+ANALYSIS INSTRUCTIONS:
+
+1. UNDERSTAND THE QUESTION:
+   - What is the user really asking?
+   - What decision are they trying to make?
+   - What level of detail do they need?
+
+2. ANALYZE THE DATA:
+   - Review all relevant data points
+   - Identify patterns and correlations
+   - Calculate any necessary metrics
+   - Cross-reference with existing insights
+
+3. PROVIDE COMPREHENSIVE ANSWER:
+   - Direct answer to the question (be specific!)
+   - Supporting evidence from actual data
+   - Context and nuance (important caveats)
+   - Actionable recommendations
+   - Follow-up considerations
+
+4. BE CONVERSATIONAL YET PROFESSIONAL:
+   - Clear, jargon-free language
+   - Specific numbers and examples
+   - Honest about limitations
+   - Proactive in suggesting related insights
+
+RESPONSE GUIDELINES:
+- Cite specific data points (dates, numbers, percentages)
+- Explain causation, not just correlation
+- Prioritize actionable insights
+- Note confidence levels and limitations
+- Suggest follow-up questions if relevant
+
+Provide a comprehensive, conversational response in JSON format (no markdown):
 {{
-  "answer": "direct answer to the question",
-  "supporting_evidence": ["data point 1", "data point 2"],
-  "recommendations": ["action 1"],
-  "confidence": "high/medium/low"
+  "answer": "Detailed, specific answer to the user's question in 3-5 sentences. Include actual numbers, dates, and metrics from the data. Be conversational but professional. If the question is complex, structure the answer in clear points.",
+  
+  "supporting_evidence": [
+    "Specific data point 1 with actual numbers (e.g., 'Activation rate dropped from 0.42 to 0.39 (-7.1%) on Android tier2 users between Sept 30 and Oct 7')",
+    "Data point 2 with temporal correlation (e.g., 'This decline occurred 1 day after Release 1056 which introduced phone verification')",
+    "Data point 3 with additional context (e.g., 'No campaigns were running for this segment during this period, ruling out campaign fatigue')",
+    "Data point 4 if relevant with quantification"
+  ],
+  
+  "key_insights": [
+    "Important insight or pattern discovered while answering this question",
+    "Additional context that adds value beyond the direct answer"
+  ],
+  
+  "recommendations": [
+    {{
+      "action": "Specific, implementable recommendation",
+      "rationale": "Why this will help based on the data",
+      "expected_outcome": "What will likely improve",
+      "priority": "high/medium/low",
+      "quick_win": true/false
+    }}
+  ],
+  
+  "caveats": [
+    "Important limitation or consideration the user should know",
+    "Data quality note or sample size consideration if applicable"
+  ],
+  
+  "follow_up_suggestions": [
+    "Suggested follow-up question to dig deeper",
+    "Related analysis that might be valuable"
+  ],
+  
+  "confidence": "high/medium/low",
+  "confidence_explanation": "Why this confidence level - cite data quality, correlation strength, sample size"
 }}
+
+Remember: Be helpful, specific, and actionable. Use actual data points. If data is insufficient, say so honestly and suggest what additional data would help.
 """
             
             response_text = await self._call_gemini(prompt)
@@ -618,9 +1146,12 @@ Provide a comprehensive answer in JSON format (no markdown, just JSON):
         except Exception as e:
             logger.error(f"Query insights error: {str(e)}")
             return {
-                "answer": "Unable to process query",
+                "answer": "I encountered an error analyzing your question. Please try rephrasing or ask a more specific question about your metrics, releases, or campaigns.",
                 "supporting_evidence": [],
+                "key_insights": [],
                 "recommendations": [],
+                "caveats": [f"Error: {str(e)}"],
+                "follow_up_suggestions": [],
                 "confidence": "low",
-                "error": str(e)
+                "confidence_explanation": "Technical error prevented analysis"
             }
