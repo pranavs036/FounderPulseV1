@@ -73,7 +73,7 @@ export const MetricCard = ({ metric, onAnalyze, disabled, insights = [], onViewI
                 </p>
               </div>
             </div>
-            {insights.length > 1 && (
+            {insights.length > 0 && (
               <Button
                 size="sm"
                 variant="outline"
