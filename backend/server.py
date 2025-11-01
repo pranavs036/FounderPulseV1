@@ -120,10 +120,10 @@ async def generate_insights_background():
         try:
             insights = await asyncio.wait_for(
                 ai_engine.generate_comprehensive_insights(),
-                timeout=120.0  # 2 minute timeout
+                timeout=180.0  # 3 minute timeout
             )
         except asyncio.TimeoutError:
-            logger.error("Insights generation timed out after 120 seconds")
+            logger.error("Insights generation timed out after 180 seconds")
             return
         
         # Store insights
@@ -143,9 +143,8 @@ async def generate_insights_background():
 
 # Helper Functions
 async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign_data: List[Dict]) -> Dict:
-    """Use Gemini API to analyze metric changes - ENHANCED VERSION"""
+    """Use Gemini API to analyze metric changes - SIMPLE VERSION"""
     try:
-        # Configure Gemini
         api_key = os.environ.get('GOOGLE_API_KEY')
         if not api_key:
             return {
@@ -157,102 +156,34 @@ async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-2.5-flash')
         
-        # Prepare enhanced context
-        prompt = f"""You are a senior growth analyst specializing in metric anomaly analysis, user behavior patterns, and data-driven product optimization for B2C digital products.
+        prompt = f"""Analyze this metric change:
 
-COMPANY CONTEXT:
-- Type: B2C mobile and web application
-- User base: Mixed segments (tier1 premium, tier2 standard)
-- Platforms: Android, iOS, Web
-- Growth stage: Scaling with focus on activation, retention, and monetization
+Metric: {json.dumps(metric_data)}
+Releases: {json.dumps(release_notes[:2])}
+Campaigns: {json.dumps(campaign_data[:2])}
 
-METRIC ANOMALY DETECTED:
-
-Metric Details:
-{json.dumps(metric_data, indent=2)}
-
-Metric Name: {metric_data.get('metric_name', 'unknown')}
-Change Magnitude: {metric_data.get('change_percent', 0):+.1f}%
-Previous Value: {metric_data.get('previous_value', 0):.3f}
-Current Value: {metric_data.get('current_value', 0):.3f}
-Platform: {metric_data.get('platform', 'all')}
-User Segment: {metric_data.get('cohort', 'all')}
-
-RECENT PRODUCT RELEASES (potential correlation):
-{json.dumps(release_notes[:3], indent=2)}
-
-RECENT MARKETING CAMPAIGNS (potential correlation):
-{json.dumps(campaign_data[:3], indent=2)}
-
-ANALYSIS REQUIREMENTS:
-
-1. ROOT CAUSE IDENTIFICATION:
-   - Analyze temporal correlation with releases (did a release cause this?)
-   - Analyze campaign impact (did marketing drive this change?)
-   - Consider platform-specific factors
-   - Consider segment-specific user behaviors
-   - Identify technical vs behavioral vs external factors
-
-2. USER IMPACT ASSESSMENT:
-   - Which specific user cohort is most affected?
-   - What user behaviors likely changed?
-   - User psychology and motivation factors
-   - Estimated user count impacted
-
-3. BUSINESS CONTEXT:
-   - Severity of this change (critical/moderate/minor)
-   - Urgency of action required
-   - Revenue/growth implications
-
-4. ACTIONABLE RECOMMENDATION:
-   - One HIGH-PRIORITY action to take immediately
-   - Be specific and implementable
-   - Include expected outcome
-   - Note implementation effort
-
-Provide detailed, actionable analysis in JSON format (no markdown):
+Provide JSON (no markdown):
 {{
-  "probable_cause": "Comprehensive explanation of the most likely root cause with supporting evidence from releases, campaigns, or user behavior patterns. Be specific about correlation timing and magnitude.",
-  
-  "affected_segment": "Detailed description of the primary affected user segment including platform, tier, and relevant behavioral characteristics. Example: 'Android tier2 users - typically price-sensitive casual users who show 20% lower engagement than tier1'",
-  
-  "impact_severity": "critical/high/medium/low with brief justification",
-  
-  "recommended_action": "Specific, immediately actionable recommendation with implementation steps. Example: 'Run an A/B test over next 7 days: Control group sees current phone verification (required), Test group sees optional verification with 10% incentive. Measure activation rate, time-to-completion, and 7-day retention. Expected outcome: 4-6% activation recovery.'",
-  
-  "alternative_actions": [
-    "Second priority action with brief explanation",
-    "Third option if first two aren't feasible"
-  ],
-  
-  "expected_timeline_to_recover": "How long it will take to see improvement if recommendation is implemented",
-  
-  "monitoring_metrics": [
-    "Key metric to monitor for improvement",
-    "Secondary metric to watch"
-  ]
+  "probable_cause": "clear explanation",
+  "affected_segment": "user segment",
+  "recommended_action": "specific action"
 }}
-
-Be specific, actionable, and data-driven. Avoid generic advice.
 """
         
         response = model.generate_content(prompt)
         response_text = response.text.strip()
         
-        # Remove markdown code blocks if present
         if response_text.startswith('```'):
-            response_text = response_text.split('\n', 1)[1]
-            response_text = response_text.rsplit('```', 1)[0]
-            response_text = response_text.replace('json', '').strip()
+            response_text = response_text.split('\n', 1)[1].rsplit('```', 1)[0].replace('json', '').strip()
         
         insight = json.loads(response_text)
         return insight
     except Exception as e:
         logger.error(f"AI analysis error: {str(e)}")
         return {
-            "probable_cause": "Unable to determine cause automatically. Please review the data manually or try again.",
+            "probable_cause": "Unable to determine cause",
             "affected_segment": "All users",
-            "recommended_action": "Manual investigation recommended. Check recent releases and campaigns for correlation."
+            "recommended_action": "Manual investigation recommended"
         }
 
 def detect_anomalies(df: pd.DataFrame) -> List[Dict]:
