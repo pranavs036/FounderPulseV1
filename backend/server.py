@@ -120,10 +120,10 @@ async def generate_insights_background():
         try:
             insights = await asyncio.wait_for(
                 ai_engine.generate_comprehensive_insights(),
-                timeout=120.0  # 2 minute timeout
+                timeout=180.0  # 3 minute timeout
             )
         except asyncio.TimeoutError:
-            logger.error("Insights generation timed out after 120 seconds")
+            logger.error("Insights generation timed out after 180 seconds")
             return
         
         # Store insights
@@ -143,9 +143,8 @@ async def generate_insights_background():
 
 # Helper Functions
 async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign_data: List[Dict]) -> Dict:
-    """Use Gemini API to analyze metric changes"""
+    """Use Gemini API to analyze metric changes - SIMPLE VERSION"""
     try:
-        # Configure Gemini
         api_key = os.environ.get('GOOGLE_API_KEY')
         if not api_key:
             return {
@@ -157,21 +156,13 @@ async def analyze_with_ai(metric_data: Dict, release_notes: List[Dict], campaign
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('models/gemini-2.5-flash')
         
-        # Prepare context
-        prompt = f"""
-You are a growth analyst for a B2C app.
+        prompt = f"""Analyze this metric change:
 
-Given:
-- Metric trend: {json.dumps(metric_data)}
-- Release notes: {json.dumps(release_notes[:3])}
-- Campaign summary: {json.dumps(campaign_data[:3])}
+Metric: {json.dumps(metric_data)}
+Releases: {json.dumps(release_notes[:2])}
+Campaigns: {json.dumps(campaign_data[:2])}
 
-Explain:
-1. Why this metric changed
-2. Which user cohort was affected
-3. One actionable recommendation
-
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
+Provide JSON (no markdown):
 {{
   "probable_cause": "clear explanation",
   "affected_segment": "user segment",
@@ -182,18 +173,15 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
         response = model.generate_content(prompt)
         response_text = response.text.strip()
         
-        # Remove markdown code blocks if present
         if response_text.startswith('```'):
-            response_text = response_text.split('\n', 1)[1]
-            response_text = response_text.rsplit('```', 1)[0]
-            response_text = response_text.replace('json', '').strip()
+            response_text = response_text.split('\n', 1)[1].rsplit('```', 1)[0].replace('json', '').strip()
         
         insight = json.loads(response_text)
         return insight
     except Exception as e:
         logger.error(f"AI analysis error: {str(e)}")
         return {
-            "probable_cause": "Unable to determine cause automatically",
+            "probable_cause": "Unable to determine cause",
             "affected_segment": "All users",
             "recommended_action": "Manual investigation recommended"
         }
@@ -557,6 +545,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
