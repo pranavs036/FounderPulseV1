@@ -1,13 +1,17 @@
-import { TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Sparkles, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export const MetricCard = ({ metric, onAnalyze, disabled }) => {
+export const MetricCard = ({ metric, onAnalyze, disabled, insights = [], onViewInsights }) => {
   const isPositive = metric.change_percent > 0;
   const Icon = isPositive ? TrendingUp : TrendingDown;
   const colorClass = isPositive ? "text-green-600" : "text-red-600";
   const bgColorClass = isPositive ? "bg-green-50" : "bg-red-50";
+
+  // Get the first insight for preview
+  const firstInsight = insights.length > 0 ? insights[0] : null;
+  const insightPreview = firstInsight?.summary || firstInsight?.probable_cause || firstInsight?.recommended_action || null;
 
   return (
     <Card className="hover:shadow-lg transition-shadow" data-testid={`metric-card-${metric.metric_name}`}>
@@ -54,6 +58,34 @@ export const MetricCard = ({ metric, onAnalyze, disabled }) => {
             </div>
           </div>
         </div>
+
+        {/* Inline Insights Section */}
+        {insights.length > 0 && insightPreview && (
+          <div className="pt-2 border-t border-slate-100">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-slate-700">Insight</span>
+                  <Badge variant="secondary" className="text-xs">{insights.length}</Badge>
+                </div>
+                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                  {insightPreview}
+                </p>
+              </div>
+            </div>
+            {insights.length > 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={onViewInsights}
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                View all insights
+              </Button>
+            )}
+          </div>
+        )}
 
         <Button
           size="sm"

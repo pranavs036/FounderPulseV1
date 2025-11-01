@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
-import { Upload, Activity, MessageSquare, RefreshCw } from "lucide-react";
+import { Upload, Activity, MessageSquare, RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
 import api from "@/services/api";
 import FileUpload from "@/components/FileUpload";
 import MetricCard from "@/components/MetricCard";
 import InsightPanel from "@/components/InsightPanel";
 import ActionLogsPanel from "@/components/ActionLogsPanel";
 import ChatInterface from "@/components/ChatInterface";
+import MetricInsightsModal from "@/components/MetricInsightsModal";
 
 const Dashboard = () => {
   const [metrics, setMetrics] = useState([]);
@@ -19,7 +22,12 @@ const Dashboard = () => {
   const [actionLogs, setActionLogs] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [analyzingMetricId, setAnalyzingMetricId] = useState(null);
   const [selectedTab, setSelectedTab] = useState("overview");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMetric, setModalMetric] = useState(null);
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAllData();
@@ -125,7 +133,7 @@ const Dashboard = () => {
   };
 
   const handleAnalyzeMetric = async (anomalyId) => {
-    setLoading(true);
+    setAnalyzingMetricId(anomalyId);
     try {
       await api.analyzeMetric(anomalyId);
       toast.success("Analysis complete", {
@@ -133,14 +141,26 @@ const Dashboard = () => {
         descriptionClassName: "text-slate-700 font-medium"
       });
       await fetchInsights();
+      await fetchEnhancedInsights();
     } catch (error) {
       toast.error("Analysis failed", {
         description: error.response?.data?.detail || "Please try again",
         descriptionClassName: "text-red-700 font-medium"
       });
     } finally {
-      setLoading(false);
+      setAnalyzingMetricId(null);
     }
+  };
+
+  const insightsForMetric = (metricName) => {
+    const basic = insights.filter((i) => i.metric === metricName);
+    const enhanced = enhancedInsights.filter((i) => i.metric === metricName);
+    return { basic, enhanced };
+  };
+
+  const openInsightsModal = (metricName) => {
+    setModalMetric(metricName);
+    setModalOpen(true);
   };
 
   const handleTriggerAction = async (insightId, metric, actionType) => {
@@ -235,20 +255,29 @@ const Dashboard = () => {
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                 Live
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  signOut();
+                  navigate("/");
+                }}
+                className="ml-2"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 h-[calc(100vh-96px)] overflow-y-auto">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-4 bg-white" data-testid="dashboard-tabs">
+          <TabsList className="grid w-full max-w-md grid-cols-3 bg-white" data-testid="dashboard-tabs">
             <TabsTrigger value="overview" data-testid="tab-overview">
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="insights" data-testid="tab-insights">
-              Insights
             </TabsTrigger>
             <TabsTrigger value="chat" data-testid="tab-chat">
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -331,109 +360,21 @@ const Dashboard = () => {
                     <p className="text-sm mt-1">Upload Mixpanel data to start analyzing metrics</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="metrics-grid">
-                    {metrics.map((metric) => (
-                      <MetricCard
-                        key={metric.id}
-                        metric={metric}
-                        onAnalyze={() => handleAnalyzeMetric(metric.id)}
-                        disabled={loading}
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-6" data-testid="insights-tab-content">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>AI Insights</CardTitle>
-                    <CardDescription>
-                      Comprehensive analysis powered by Gemini 2.0 Flash
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="secondary" data-testid="insight-count">
-                      {insights.length + enhancedInsights.length} total insights
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {insights.length === 0 && enhancedInsights.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                    <p className="text-lg font-medium">No insights generated yet</p>
-                    <p className="text-sm mt-1 mb-4">
-                      Click "Generate Insights" or analyze specific metrics
-                    </p>
-                    <Button
-                      onClick={handleGenerateInsights}
-                      disabled={loading || !summary || summary.mixpanel_records === 0}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Generate Insights Now
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4" data-testid="insights-list">
-                    {/* Basic Insights */}
-                    {insights.map((insight) => (
-                      <InsightPanel
-                        key={insight.id}
-                        insight={insight}
-                        onTriggerAction={(actionType) =>
-                          handleTriggerAction(insight.id, insight.metric, actionType)
-                        }
-                        disabled={loading}
-                      />
-                    ))}
-
-                    {/* Enhanced Insights */}
-                    {enhancedInsights.map((insight) => (
-                      <Card key={insight.id} className="border-l-4 border-l-purple-500">
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg capitalize">
-                              {insight.insight_type?.replace(/_/g, " ")}
-                            </CardTitle>
-                            <Badge
-                              variant={
-                                insight.confidence === "high"
-                                  ? "default"
-                                  : insight.confidence === "medium"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                            >
-                              {insight.confidence} confidence
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-slate-700 mb-4">{insight.summary}</p>
-                          {insight.recommendations && insight.recommendations.length > 0 && (
-                            <div className="bg-blue-50 rounded-lg p-4">
-                              <p className="text-sm font-semibold text-slate-900 mb-2">Recommendations:</p>
-                              <ul className="space-y-1">
-                                {insight.recommendations.map((rec, i) => (
-                                  <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
-                                    <span className="text-blue-600 mt-0.5">→</span>
-                                    <span>{rec}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="metrics-grid">
+                    {metrics.map((metric) => {
+                      const { basic, enhanced } = insightsForMetric(metric.metric_name);
+                      const combined = [...basic, ...enhanced];
+                      return (
+                        <MetricCard
+                          key={metric.id}
+                          metric={metric}
+                          onAnalyze={() => handleAnalyzeMetric(metric.id)}
+                          disabled={analyzingMetricId === metric.id || loading}
+                          insights={combined}
+                          onViewInsights={() => openInsightsModal(metric.metric_name)}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -442,7 +383,9 @@ const Dashboard = () => {
 
           {/* Chat Tab */}
           <TabsContent value="chat" className="space-y-6" data-testid="chat-tab-content">
-            <ChatInterface onSendQuery={handleChatQuery} loading={loading} />
+            <div className="h-[calc(100vh-220px)]">
+              <ChatInterface onSendQuery={handleChatQuery} loading={loading} />
+            </div>
           </TabsContent>
 
           {/* Actions Tab */}
@@ -451,6 +394,18 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Insights Modal */}
+      <MetricInsightsModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        metric={modalMetric}
+        insights={modalMetric ? insights.filter(i => i.metric === modalMetric) : []}
+        enhancedInsights={modalMetric ? enhancedInsights.filter(i => i.metric === modalMetric) : []}
+        onTriggerAction={handleTriggerAction}
+        onSendQuery={handleChatQuery}
+        loading={loading}
+      />
     </div>
   );
 };
