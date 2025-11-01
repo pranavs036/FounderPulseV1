@@ -103,3 +103,61 @@ code {
 [data-sonner-toast][data-type="info"] [data-description] {
   color: rgb(30, 64, 175) !important;
 }
+
+/* Custom animations for landing page */
+@keyframes diagonal-shimmer {
+  0% { 
+    background-position: 0% 0%;
+    transform: translate3d(-2%, -2%, 0) rotate(0deg);
+  }
+  50% { 
+    background-position: 100% 100%;
+    transform: translate3d(2%, 1%, 0) rotate(8deg);
+  }
+  100% { 
+    background-position: 0% 0%;
+    transform: translate3d(-1%, 2%, 0) rotate(-6deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 0;
+  }
+}
+
+/* Glow utilities */
+.glow-indigo {
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
+}
+
+.glow-indigo-intense {
+  box-shadow: 0 0 60px rgba(99, 102, 241, 0.35);
+}
+
+/* Backdrop blur utilities */
+.backdrop-blur-nav {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Landing page specific styles */
+.landing-bg {
+  background: linear-gradient(135deg, #0D1117 0%, #11131A 100%);
+}
+
+.landing-gradient {
+  background: linear-gradient(135deg, #6366F1, #7C3AED);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagonal-shimmer,
+  .pulse-ring {
+    animation: none !important;
+  }
+}
