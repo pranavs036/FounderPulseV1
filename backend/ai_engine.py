@@ -26,7 +26,7 @@ class AIAnalysisEngine:
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel('models/gemini-2.5-flash')
         else:
-            logger.warning("GOOGLE_API_KEY not found")
+            logger.warning("Google API key not found in environment variables")
             self.model = None
         
     async def _call_gemini(self, prompt: str) -> str:

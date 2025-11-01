@@ -21,11 +21,11 @@ if [ ! -f "backend/.env" ]; then
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=growth_copilot_db
 CORS_ORIGINS=*
-EMERGENT_LLM_KEY=your-key-here
+GOOGLE_API_KEY=your-key-here
 EOF
     echo "✓ Created backend/.env"
     echo ""
-    echo "⚠️  IMPORTANT: Update EMERGENT_LLM_KEY in backend/.env with your actual API key!"
+    echo "⚠️  IMPORTANT: Update GOOGLE_API_KEY in backend/.env with your actual API key!"
     echo ""
     read -p "Press Enter after updating the API key..."
 fi
