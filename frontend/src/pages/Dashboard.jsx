@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Upload, Activity, MessageSquare, RefreshCw } from "lucide-react";
+import { Upload, Activity, MessageSquare, RefreshCw, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,13 +23,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchAllData();
-    // Set up periodic refresh every 5 seconds to catch updates
-    const interval = setInterval(() => {
-      fetchMetrics();
-      fetchSummary();
-    }, 5000);
-    
-    return () => clearInterval(interval);
   }, []);
 
   const fetchAllData = async () => {
@@ -45,14 +38,9 @@ const Dashboard = () => {
   const fetchMetrics = async () => {
     try {
       const data = await api.getMetrics();
-      console.log('Fetched metrics:', data); // Debug log
       setMetrics(data);
     } catch (error) {
       console.error("Error fetching metrics:", error);
-      toast.error("Failed to load metrics", {
-        description: error.message,
-        descriptionClassName: "text-red-700 font-medium"
-      });
     }
   };
 
@@ -106,14 +94,13 @@ const Dashboard = () => {
 
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} data uploaded`, {
         description: `${response.record_count} records processed. ${response.insights_generated || 0} anomalies detected.`,
-        className: "text-slate-900",
         descriptionClassName: "text-slate-700 font-medium"
       });
 
-      // Refresh data after short delay to allow background processing
+      // Refresh data after upload
       setTimeout(async () => {
         await fetchAllData();
-      }, 2000);
+      }, 1000);
     } catch (error) {
       toast.error("Upload failed", {
         description: error.response?.data?.detail || "Please check your file format",
@@ -147,12 +134,10 @@ const Dashboard = () => {
     setLoading(true);
     try {
       await api.triggerAction(insightId, metric, actionType);
-
       toast.success("Action triggered", {
         description: `${actionType === "moengage" ? "Campaign" : "Jira task"} created successfully`,
         descriptionClassName: "text-slate-700 font-medium"
       });
-
       await fetchActionLogs();
     } catch (error) {
       toast.error("Action failed", {
@@ -173,23 +158,42 @@ const Dashboard = () => {
     }
   };
 
+  const handleRefreshData = async () => {
+    setLoading(true);
+    try {
+      await fetchAllData();
+      toast.success("Data refreshed", {
+        description: "Latest data loaded from server",
+        descriptionClassName: "text-slate-700 font-medium"
+      });
+    } catch (error) {
+      toast.error("Refresh failed", {
+        description: "Unable to reload data",
+        descriptionClassName: "text-red-700 font-medium"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerateInsights = async () => {
     setLoading(true);
     try {
       await api.triggerInsightsGeneration();
       toast.success("Insights generation started", {
-        description: "AI is analyzing your data. This will take 30-60 seconds. Watch the Insights tab!",
+        description: "AI is analyzing your data. This will take 20-40 seconds. Watch the Insights tab!",
         descriptionClassName: "text-slate-700 font-medium"
       });
       
-      // Refresh after 30 seconds
+      // Refresh after 35 seconds
       setTimeout(async () => {
         await fetchEnhancedInsights();
-        toast.info("Insights refreshed", {
+        await fetchSummary();
+        toast.info("Insights ready!", {
           description: "Check the Insights tab for new analysis",
           descriptionClassName: "text-slate-700 font-medium"
         });
-      }, 30000);
+      }, 35000);
     } catch (error) {
       toast.error("Failed to trigger insights", {
         description: error.response?.data?.detail || "Please try again",
@@ -211,10 +215,7 @@ const Dashboard = () => {
                 <Activity className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1
-                  className="text-2xl font-bold text-slate-900"
-                  style={{ fontFamily: "Space Grotesk, sans-serif" }}
-                >
+                <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
                   Growth Copilot
                 </h1>
                 <p className="text-sm text-slate-500">AI-powered growth analytics</p>
@@ -231,6 +232,16 @@ const Dashboard = () => {
                   </Badge>
                 </div>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshData}
+                disabled={loading}
+                className="gap-2"
+              >
+                <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
               <Badge variant="outline" className="px-3 py-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                 Live
@@ -244,24 +255,17 @@ const Dashboard = () => {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-4 bg-white" data-testid="dashboard-tabs">
-            <TabsTrigger value="overview" data-testid="tab-overview">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="insights" data-testid="tab-insights">
-              Insights
-            </TabsTrigger>
+            <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
             <TabsTrigger value="chat" data-testid="tab-chat">
               <MessageSquare className="w-4 h-4 mr-2" />
               Chat
             </TabsTrigger>
-            <TabsTrigger value="actions" data-testid="tab-actions">
-              Actions
-            </TabsTrigger>
+            <TabsTrigger value="actions" data-testid="tab-actions">Actions</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6" data-testid="overview-tab-content">
-            {/* File Upload Section */}
             <Card className="border-slate-200 shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -353,13 +357,20 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>AI Insights</CardTitle>
-                    <CardDescription>
-                      Comprehensive analysis powered by Gemini 2.0 Flash
-                    </CardDescription>
+                    <CardDescription>Comprehensive analysis powered by Gemini</CardDescription>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshData}
+                      disabled={loading}
+                    >
+                      <RotateCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                      Refresh
+                    </Button>
                     <Badge variant="secondary" data-testid="insight-count">
-                      {insights.length + enhancedInsights.length} total insights
+                      {insights.length + enhancedInsights.length} total
                     </Badge>
                   </div>
                 </div>
@@ -369,9 +380,7 @@ const Dashboard = () => {
                   <div className="text-center py-12 text-slate-500">
                     <MessageSquare className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                     <p className="text-lg font-medium">No insights generated yet</p>
-                    <p className="text-sm mt-1 mb-4">
-                      Click "Generate Insights" or analyze specific metrics
-                    </p>
+                    <p className="text-sm mt-1 mb-4">Click "Generate Insights" or analyze specific metrics</p>
                     <Button
                       onClick={handleGenerateInsights}
                       disabled={loading || !summary || summary.mixpanel_records === 0}
@@ -383,7 +392,6 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4" data-testid="insights-list">
-                    {/* Basic Insights */}
                     {insights.map((insight) => (
                       <InsightPanel
                         key={insight.id}
@@ -394,8 +402,6 @@ const Dashboard = () => {
                         disabled={loading}
                       />
                     ))}
-
-                    {/* Enhanced Insights */}
                     {enhancedInsights.map((insight) => (
                       <Card key={insight.id} className="border-l-4 border-l-purple-500">
                         <CardHeader>
@@ -403,15 +409,7 @@ const Dashboard = () => {
                             <CardTitle className="text-lg capitalize">
                               {insight.insight_type?.replace(/_/g, " ")}
                             </CardTitle>
-                            <Badge
-                              variant={
-                                insight.confidence === "high"
-                                  ? "default"
-                                  : insight.confidence === "medium"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                            >
+                            <Badge variant={insight.confidence === "high" ? "default" : insight.confidence === "medium" ? "secondary" : "outline"}>
                               {insight.confidence} confidence
                             </Badge>
                           </div>
@@ -425,7 +423,7 @@ const Dashboard = () => {
                                 {insight.recommendations.map((rec, i) => (
                                   <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
                                     <span className="text-blue-600 mt-0.5">→</span>
-                                    <span>{rec}</span>
+                                    <span>{typeof rec === 'object' ? rec.action || JSON.stringify(rec) : rec}</span>
                                   </li>
                                 ))}
                               </ul>
