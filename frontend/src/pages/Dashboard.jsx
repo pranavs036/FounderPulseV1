@@ -14,6 +14,9 @@ import InsightPanel from "@/components/InsightPanel";
 import ActionLogsPanel from "@/components/ActionLogsPanel";
 import ChatInterface from "@/components/ChatInterface";
 import MetricInsightsModal from "@/components/MetricInsightsModal";
+import PriceDropNotificationPopup from "@/components/PriceDropNotificationPopup";
+import PriceDropDetailsModal from "@/components/PriceDropDetailsModal";
+import CampaigningTab from "@/components/CampaigningTab";
 
 const Dashboard = () => {
   const [metrics, setMetrics] = useState([]);
@@ -26,6 +29,8 @@ const Dashboard = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMetric, setModalMetric] = useState(null);
+  const [priceDropPopupOpen, setPriceDropPopupOpen] = useState(false);
+  const [priceDropDetailsOpen, setPriceDropDetailsOpen] = useState(false);
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -108,6 +113,10 @@ const Dashboard = () => {
       // Refresh data after upload
       setTimeout(async () => {
         await fetchAllData();
+        // Show price drop notification popup after upload (hardcoded for demo)
+        setTimeout(() => {
+          setPriceDropPopupOpen(true);
+        }, 1500);
       }, 1000);
     } catch (error) {
       toast.error("Upload failed", {
@@ -286,9 +295,12 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 h-[calc(100vh-96px)] overflow-y-auto">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3 bg-white" data-testid="dashboard-tabs">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-white" data-testid="dashboard-tabs">
             <TabsTrigger value="overview" data-testid="tab-overview">
-              Overview
+              📊 Insights
+            </TabsTrigger>
+            <TabsTrigger value="campaigning" data-testid="tab-campaigning">
+              🏷️ Discount Alerts
             </TabsTrigger>
             <TabsTrigger value="chat" data-testid="tab-chat">
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -389,6 +401,11 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Campaigning Tab */}
+          <TabsContent value="campaigning" className="space-y-6" data-testid="campaigning-tab-content">
+            <CampaigningTab />
+          </TabsContent>
+
           {/* Chat Tab */}
           <TabsContent value="chat" className="space-y-6" data-testid="chat-tab-content">
             <div className="h-[calc(100vh-220px)]">
@@ -413,6 +430,22 @@ const Dashboard = () => {
         onTriggerAction={handleTriggerAction}
         onSendQuery={handleChatQuery}
         loading={loading}
+      />
+
+      {/* Price Drop Notification Popup */}
+      <PriceDropNotificationPopup
+        open={priceDropPopupOpen}
+        onOpenChange={setPriceDropPopupOpen}
+        onViewDetails={() => {
+          setPriceDropPopupOpen(false);
+          setPriceDropDetailsOpen(true);
+        }}
+      />
+
+      {/* Price Drop Details Modal */}
+      <PriceDropDetailsModal
+        open={priceDropDetailsOpen}
+        onOpenChange={setPriceDropDetailsOpen}
       />
     </div>
   );
